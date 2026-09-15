@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import axios from 'axios';
 
@@ -52,6 +52,17 @@ export default function Register() {
         setProcessing(true);
 
         try {
+            // 1. Check if phone number already exists in Laravel DB first
+            const checkResponse = await axios.post('/api/check-phone', { phone: phone });
+            
+            if (checkResponse.data.exists) {
+                // If exists, stop the process and show an error
+                setErrorMsg("This phone number is already registered. Please log in.");
+                setProcessing(false);
+                return; // Stop execution here
+            }
+
+            // 2. If phone is new, proceed with Firebase OTP setup
             setupRecaptcha();
             const appVerifier = window.recaptchaVerifier;
             
@@ -252,11 +263,19 @@ export default function Register() {
                                 Please check your email and click the link to verify your account before logging in.
                             </p>
                         </div>
-                        <Link href="/login" className="inline-block mt-4 text-[#FF8C00] font-bold hover:underline">
-                            Go to Login Page
-                        </Link>
                     </div>
                 )}
+
+                {/* Login Link Section - Show on all steps */}
+                <div className="text-center mt-6 border-t border-gray-200 pt-6">
+                    <p className="text-sm text-gray-600">
+                        {step === 4 ? "Ready to start?" : "Already registered?"}{' '}
+                        <Link href="/login" className="font-medium text-[#FF8C00] hover:underline">
+                            Log in here
+                        </Link>
+                    </p>
+                </div>
+
             </div>
         </div>
     );
