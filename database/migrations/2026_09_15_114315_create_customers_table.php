@@ -9,10 +9,16 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+   public function up(): void
     {
         Schema::create('customers', function (Blueprint $table) {
             $table->id();
+            $table->string('firebase_uid')->unique();
+            $table->string('full_name');
+            $table->string('email')->unique();
+            $table->string('phone_number')->unique();
+            $table->string('nic_number')->unique();
+            $table->text('address');
             $table->timestamps();
         });
     }
