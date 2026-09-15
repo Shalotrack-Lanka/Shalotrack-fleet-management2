@@ -66,7 +66,7 @@ export default function Register() {
         }
     };
 
-    // 3. OTP එක තහවුරු කිරීම
+    // 3. Verify the OTP entered by the user
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
         setErrorMsg('');
@@ -74,37 +74,37 @@ export default function Register() {
 
         try {
             await confirmationResult.confirm(otp);
-            // OTP හරි නම් අනිත් විස්තර පුරවන පියවරට යන්න
+            // User is now authenticated with phone number, proceed to next step
             setStep(3);
             setProcessing(false);
         } catch (error) {
-            setErrorMsg("OTP කේතය වැරදියි. නැවත උත්සාහ කරන්න.");
+            setErrorMsg("Invalid OTP. Please try again.");
             setProcessing(false);
         }
     };
 
-    // 4. සම්පූර්ණ විස්තර යැවීම සහ Email Verify කිරීම
+    // 4. Submit final details and send email verification
     const submitFinalDetails = async (e) => {
         e.preventDefault();
         setErrorMsg('');
 
         if (formData.password !== formData.password_confirmation) {
-            return setErrorMsg("පාස්වර්ඩ් එක ගැළපෙන්නේ නැහැ.");
+            return setErrorMsg(" Password and Confirm Password do not match.");
         }
 
         setProcessing(true);
 
         try {
-            const user = auth.currentUser; // OTP එකෙන් ලොග් වුණ User
+            const user = auth.currentUser; // User authenticated with OTP
 
-            // Phone එකෙන් ආපු කෙනාට Email & Password ලින්ක් කිරීම
+            // Link the phone number with email and password
             const credential = EmailAuthProvider.credential(formData.email, formData.password);
             await linkWithCredential(user, credential);
 
-            // Email Verify කිරීමේ ලින්ක් එක යැවීම
+            // Send email verification to the user's email
             await sendEmailVerification(user);
 
-            // Laravel API එකට Data යැවීම
+            // Save user details to the backend (Laravel)
             await axios.post('/api/Customers', {
                 FullName: formData.fullName,
                 Email: formData.email,
@@ -114,12 +114,12 @@ export default function Register() {
                 FirebaseUID: user.uid
             });
 
-            setStep(4); // අවසන් පණිවිඩය පෙන්වීම
+            setStep(4); // Move to final success step
             setProcessing(false);
 
         } catch (error) {
             console.error(error);
-            setErrorMsg("ගිණුම සෑදීමේදී දෝෂයක් ඇතිවිය. මෙම ඊමේල් එක භාවිතයේ පවතීදැයි බලන්න.");
+            setErrorMsg(" An error occurred while saving your details. Please try again.");
             setProcessing(false);
         }
     };
@@ -140,7 +140,7 @@ export default function Register() {
                     </div>
                 )}
 
-                {/* රොබෝවරුන්ගෙන් බේරෙන්න Firebase Recaptcha එක රන් වෙන තැන */}
+                {/* Recaptcha */}
                 <div id="recaptcha-container"></div>
 
                 {/* Step 1: Phone Number Input */}
@@ -223,8 +223,8 @@ export default function Register() {
                         <div className="bg-green-100 p-4 rounded-lg border-2 border-green-500">
                             <h3 className="text-lg font-bold text-green-800">Registration Almost Complete!</h3>
                             <p className="mt-2 text-green-700">
-                                අපි ඔයාගේ <strong>{formData.email}</strong> ලිපිනයට Verification Link එකක් එව්වා. 
-                                කරුණාකර Email එක පරීක්ෂා කර ලින්ක් එක මත ක්ලික් කරන්න. ඉන්පසු ඔබට ලොග් විය හැක.
+                               We have sent a verification link to <strong>{formData.email}</strong>. 
+                                Please check your email and click the link to verify your account. After verification, you can log in.
                             </p>
                         </div>
                         <Link href="/login" className="inline-block mt-4 text-[#FF8C00] font-bold hover:underline">
