@@ -12,22 +12,22 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         try {
-            // 1. Validation - දත්ත Database එකට යන්න කලින් පරීක්ෂා කිරීම
+            // 1. Validation - Validation rules and custom error messages
             $request->validate([
                 'FirebaseUid' => 'required|string',
                 'FullName'    => 'required|string',
-                'Email'       => 'required|email|unique:customers,email', // Email එක කලින් තියෙනවද බලනවා
-                'PhoneNumber' => 'required|string|unique:customers,phone_number', // Phone එක කලින් තියෙනවද බලනවා
-                'NicNumber'   => 'required|string|unique:customers,nic_number', // NIC එක කලින් තියෙනවද බලනවා
+                'Email'       => 'required|email|unique:customers,email', // Check if the email already exists in the customers table
+                'PhoneNumber' => 'required|string|unique:customers,phone_number', // Check if the phone number already exists in the customers table
+                'NicNumber'   => 'required|string|unique:customers,nic_number', // Check if the NIC number already exists in the customers table
                 'Address'     => 'required|string',
             ], [
-                // අපිට ඕනෙ නම් Custom Error පණිවිඩ දෙන්න පුළුවන්
-                'Email.unique' => 'මෙම ඊමේල් ලිපිනය දැනටමත් ලියාපදිංචි කර ඇත.',
-                'PhoneNumber.unique' => 'මෙම දුරකථන අංකය දැනටමත් ලියාපදිංචි කර ඇත.',
-                'NicNumber.unique' => 'මෙම ජාතික හැඳුනුම්පත් අංකය දැනටමත් පද්ධතියේ ඇත.'
+                // Give custom error messages for unique validation failures
+                'Email.unique' => 'This email address is already registered.',
+                'PhoneNumber.unique' => 'This phone number is already registered.',
+                'NicNumber.unique' => 'This NIC number is already registered.'
             ]);
 
-            // 2. Validation පාස් වුණොත් විතරක් Database එකට සේව් වෙනවා
+            // 2. Database Operation - Insert or Update the customer record based on Firebase UID
             DB::table('customers')->updateOrInsert(
                 ['firebase_uid' => $request->input('FirebaseUid')],
                 [
@@ -47,11 +47,11 @@ class CustomerController extends Controller
             ], 200);
 
         } catch (ValidationException $e) {
-            // 3. Validation ෆේල් වුණොත් React එකට 422 Error එකක් එක්ක වැරදි ටික යවනවා
+            // 3. Validation Error Handling - Return validation errors with a 422 status code
             return response()->json([
                 'success' => false,
                 'message' => 'Validation Error',
-                'errors'  => $e->errors() // වැරදි NIC/Email එක මොකක්ද කියලා මේකෙන් යවනවා
+                'errors'  => $e->errors() // Return the validation errors
             ], 422);
 
         } catch (\Exception $e) {
