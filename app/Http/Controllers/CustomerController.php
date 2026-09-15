@@ -63,4 +63,20 @@ class CustomerController extends Controller
             ], 500);
         }
     }
+
+    // 4. Check if the phone number already exists before sending OTP
+    public function checkPhone(Request $request)
+    {
+        // Validate the incoming phone number request
+        $request->validate([
+            'phone' => 'required|string'
+        ]);
+
+        // Check if the phone number exists in the customers table
+        $exists = DB::table('customers')->where('phone_number', $request->phone)->exists();
+        
+        return response()->json([
+            'exists' => $exists
+        ]);
+    }
 }
