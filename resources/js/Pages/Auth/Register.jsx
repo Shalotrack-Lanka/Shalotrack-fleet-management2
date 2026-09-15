@@ -13,7 +13,8 @@ import {
 } from 'firebase/auth';
 
 export default function Register() {
-    const [step, setStep] = useState(1); // Manage steps (1: Phone, 2: OTP, 3: Details, 4: Success)
+    // Manage registration steps (1: Phone, 2: OTP, 3: Details, 4: Success)
+    const [step, setStep] = useState(1); 
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
     const [confirmationResult, setConfirmationResult] = useState(null);
@@ -30,7 +31,7 @@ export default function Register() {
     const [errorMsg, setErrorMsg] = useState('');
     const [processing, setProcessing] = useState(false);
 
-    // 1. Recaptcha Setup 
+    // Setup Recaptcha for Firebase Phone Authentication
     const setupRecaptcha = () => {
         if (!window.recaptchaVerifier) {
             window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -39,11 +40,12 @@ export default function Register() {
         }
     };
 
+    // Handle form input changes
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // 2. Send OTP to the provided phone number
+    // Step 1: Send OTP to the provided phone number
     const handleSendOtp = async (e) => {
         e.preventDefault();
         setErrorMsg('');
@@ -52,21 +54,24 @@ export default function Register() {
         try {
             setupRecaptcha();
             const appVerifier = window.recaptchaVerifier;
-            // Format the phone number to include country code 
+            
+            // Format Sri Lankan phone number (e.g., 077... to +9477...)
             const formatPhone = phone.startsWith('0') ? '+94' + phone.substring(1) : phone;
             
             const result = await signInWithPhoneNumber(auth, formatPhone, appVerifier);
             setConfirmationResult(result);
-            setStep(2); // Move to OTP verification step
+            
+            // Move to OTP entry step
+            setStep(2); 
             setProcessing(false);
         } catch (error) {
             console.error(error);
-            setErrorMsg(" Could not send OTP. Please check the phone number and try again.");
+            setErrorMsg("Failed to send OTP. Please check your phone number and try again.");
             setProcessing(false);
         }
     };
 
-    // 3. Verify the OTP entered by the user
+    // Step 2: Verify the entered OTP
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
         setErrorMsg('');
@@ -74,53 +79,70 @@ export default function Register() {
 
         try {
             await confirmationResult.confirm(otp);
-            // User is now authenticated with phone number, proceed to next step
+            // Move to final details step upon successful OTP verification
             setStep(3);
             setProcessing(false);
         } catch (error) {
-            setErrorMsg("Invalid OTP. Please try again.");
+            setErrorMsg("Invalid OTP code. Please try again.");
             setProcessing(false);
         }
     };
 
-    // 4. Submit final details and send email verification
+    // Step 3: Submit final details and link email credentials
     const submitFinalDetails = async (e) => {
         e.preventDefault();
         setErrorMsg('');
 
         if (formData.password !== formData.password_confirmation) {
-            return setErrorMsg(" Password and Confirm Password do not match.");
+            return setErrorMsg("Passwords do not match.");
         }
 
         setProcessing(true);
 
         try {
-            const user = auth.currentUser; // User authenticated with OTP
+            // Get the user authenticated via phone OTP
+            const user = auth.currentUser; 
 
-            // Link the phone number with email and password
+            // Link email and password to the phone-authenticated user
             const credential = EmailAuthProvider.credential(formData.email, formData.password);
             await linkWithCredential(user, credential);
 
-            // Send email verification to the user's email
+            // Send email verification link
             await sendEmailVerification(user);
 
-            // Save user details to the backend (Laravel)
+            // Send data to Laravel Backend (Matching Laravel Controller keys exactly)
             await axios.post('/api/Customers', {
                 FullName: formData.fullName,
                 Email: formData.email,
-                Phone: phone,
-                NIC: formData.nic,
+                PhoneNumber: phone,
+                NicNumber: formData.nic,
                 Address: formData.address,
-                FirebaseUID: user.uid
+                FirebaseUid: user.uid
             });
 
-            setStep(4); // Move to final success step
+            // Move to success step
+            setStep(4); 
             setProcessing(false);
 
         } catch (error) {
             console.error(error);
-            setErrorMsg(" An error occurred while saving your details. Please try again.");
             setProcessing(false);
+
+            // Catch Laravel Validation Errors (Status 422)
+            if (error.response && error.response.status === 422) {
+                const validationErrors = error.response.data.errors;
+                // Combine all Laravel validation error messages into a single string
+                const errorMessages = Object.values(validationErrors).flat().join(' | ');
+                setErrorMsg(errorMessages);
+            } 
+            // Catch Firebase existing email error
+            else if (error.code === 'auth/email-already-in-use') {
+                setErrorMsg("This email is already registered in our system.");
+            } 
+            // Catch any other generic errors
+            else {
+                setErrorMsg("An error occurred during registration. Please check your details and try again.");
+            }
         }
     };
 
@@ -129,21 +151,24 @@ export default function Register() {
             <Head title="Register - Shalotrack" />
             
             <div className="max-w-2xl w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl border-t-4 border-[#003366]">
+                
+                {/* Header Section */}
                 <div className="text-center">
                     <h2 className="mt-2 text-3xl font-extrabold text-[#003366]">Create an Account</h2>
                     <p className="mt-2 text-sm text-gray-600">Shalotrack Fleet Management</p>
                 </div>
 
+                {/* Error Message Alert */}
                 {errorMsg && (
                     <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
                         <p>{errorMsg}</p>
                     </div>
                 )}
 
-                {/* Recaptcha */}
+                {/* Hidden container required by Firebase Recaptcha */}
                 <div id="recaptcha-container"></div>
 
-                {/* Step 1: Phone Number Input */}
+                {/* Step 1: Phone Number Form */}
                 {step === 1 && (
                     <form onSubmit={handleSendOtp} className="mt-8 space-y-6">
                         <div>
@@ -159,7 +184,7 @@ export default function Register() {
                     </form>
                 )}
 
-                {/* Step 2: OTP Input */}
+                {/* Step 2: OTP Verification Form */}
                 {step === 2 && (
                     <form onSubmit={handleVerifyOtp} className="mt-8 space-y-6">
                         <div>
@@ -175,7 +200,7 @@ export default function Register() {
                     </form>
                 )}
 
-                {/* Step 3: Registration Form */}
+                {/* Step 3: Registration Details Form */}
                 {step === 3 && (
                     <form onSubmit={submitFinalDetails} className="mt-8 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -223,8 +248,8 @@ export default function Register() {
                         <div className="bg-green-100 p-4 rounded-lg border-2 border-green-500">
                             <h3 className="text-lg font-bold text-green-800">Registration Almost Complete!</h3>
                             <p className="mt-2 text-green-700">
-                               We have sent a verification link to <strong>{formData.email}</strong>. 
-                                Please check your email and click the link to verify your account. After verification, you can log in.
+                                We have sent a verification link to <strong>{formData.email}</strong>. 
+                                Please check your email and click the link to verify your account before logging in.
                             </p>
                         </div>
                         <Link href="/login" className="inline-block mt-4 text-[#FF8C00] font-bold hover:underline">

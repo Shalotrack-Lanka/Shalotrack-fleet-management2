@@ -6,8 +6,8 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Middleware\FirebaseAuthVerify;
 
-// 
-Route::post('/Customers', [CustomerController::class, 'store']);
+// api.php
+Route::post('/check-phone', [App\Http\Controllers\CustomerController::class, 'checkPhone']);
 
 // 
 Route::middleware([FirebaseAuthVerify::class])->group(function () {
