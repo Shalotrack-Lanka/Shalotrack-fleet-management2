@@ -57,11 +57,11 @@ export default function Register() {
             
             const result = await signInWithPhoneNumber(auth, formatPhone, appVerifier);
             setConfirmationResult(result);
-            setStep(2); // OTP ගහන පියවරට යන්න
+            setStep(2); // Move to OTP verification step
             setProcessing(false);
         } catch (error) {
             console.error(error);
-            setErrorMsg("OTP යැවීමට නොහැකි විය. දුරකථන අංකය නිවැරදිදැයි පරීක්ෂා කරන්න.");
+            setErrorMsg(" Could not send OTP. Please check the phone number and try again.");
             setProcessing(false);
         }
     };
