@@ -12,32 +12,28 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         try {
-            // 1. Validation - Validation rules and custom error messages
+            // 1. Validation - Validation rules matching exact column names in Supabase
             $request->validate([
                 'FirebaseUid' => 'required|string',
                 'FullName'    => 'required|string',
-                'Email'       => 'required|email|unique:customers,email', // Check if the email already exists in the customers table
-                'PhoneNumber' => 'required|string|unique:customers,phone_number', // Check if the phone number already exists in the customers table
-                'NicNumber'   => 'required|string|unique:customers,nic_number', // Check if the NIC number already exists in the customers table
+                'Email'       => 'required|email|unique:Customers,Email', // Check in 'Customers' table, 'Email' column
+                'PhoneNumber' => 'required|string|unique:Customers,PhoneNumber', 
+                'NicNumber'   => 'required|string|unique:Customers,NicNumber', 
                 'Address'     => 'required|string',
             ], [
-                // Give custom error messages for unique validation failures
                 'Email.unique' => 'This email address is already registered.',
                 'PhoneNumber.unique' => 'This phone number is already registered.',
                 'NicNumber.unique' => 'This NIC number is already registered.'
             ]);
 
-            // 2. Database Operation - Insert or Update the customer record based on Firebase UID
-            DB::table('customers')->updateOrInsert(
-                ['firebase_uid' => $request->input('FirebaseUid')],
+            // 2. Database Operation
+            DB::table('Customers')->updateOrInsert(
+                ['CustomerId' => $request->input('FirebaseUid')],
                 [
-                    'full_name'    => $request->input('FullName'),
-                    'email'        => $request->input('Email'),
-                    'phone_number' => $request->input('PhoneNumber'),
-                    'nic_number'   => $request->input('NicNumber'),
-                    'address'      => $request->input('Address'),
-                    'updated_at'   => now(),
-                    'created_at'   => now(),
+                    'FullName'    => $request->input('FullName'),
+                    'Email'       => $request->input('Email'),
+                    'PhoneNumber' => $request->input('PhoneNumber'),
+                    'NicNumber'   => $request->input('NicNumber'),
                 ]
             );
 
@@ -47,16 +43,14 @@ class CustomerController extends Controller
             ], 200);
 
         } catch (ValidationException $e) {
-            // 3. Validation Error Handling - Return validation errors with a 422 status code
             return response()->json([
                 'success' => false,
                 'message' => 'Validation Error',
-                'errors'  => $e->errors() // Return the validation errors
+                'errors'  => $e->errors() 
             ], 422);
 
         } catch (\Exception $e) {
             Log::error('Customer Registration Error: ' . $e->getMessage());
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to save profile: ' . $e->getMessage()
@@ -67,13 +61,12 @@ class CustomerController extends Controller
     // 4. Check if the phone number already exists before sending OTP
     public function checkPhone(Request $request)
     {
-        // Validate the incoming phone number request
         $request->validate([
             'phone' => 'required|string'
         ]);
 
-        // Check if the phone number exists in the customers table
-        $exists = DB::table('customers')->where('phone_number', $request->phone)->exists();
+        // Query the 'Customers' table and 'PhoneNumber' column exactly as they appear in Supabase
+        $exists = DB::table('Customers')->where('PhoneNumber', $request->phone)->exists();
         
         return response()->json([
             'exists' => $exists
