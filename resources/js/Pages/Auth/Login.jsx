@@ -33,8 +33,11 @@ export default function Login() {
         setProcessing(true);
 
         try {
-            // 1. Check if the phone number exists in Laravel DB first
-            const checkResponse = await axios.post('/api/check-phone', { phone: phone });
+            // 1. Format Sri Lankan phone number FIRST (e.g., 077... to +9477...)
+            const formatPhone = phone.startsWith('0') ? '+94' + phone.substring(1) : phone;
+
+            // 2. Check if the FORMATTED phone number exists in Laravel DB
+            const checkResponse = await axios.post('/api/check-phone', { phone: formatPhone });
             
             // If the user does NOT exist, prevent login and show an error
             if (!checkResponse.data.exists) {
@@ -43,12 +46,9 @@ export default function Login() {
                 return; // Stop execution here
             }
 
-            // 2. If the user exists, proceed with Firebase OTP setup
+            // 3. If the user exists, proceed with Firebase OTP setup
             setupRecaptcha();
             const appVerifier = window.recaptchaVerifier;
-            
-            // Format Sri Lankan phone number (e.g., 077... to +9477...)
-            const formatPhone = phone.startsWith('0') ? '+94' + phone.substring(1) : phone;
             
             const result = await signInWithPhoneNumber(auth, formatPhone, appVerifier);
             setConfirmationResult(result);
