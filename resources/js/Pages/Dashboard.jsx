@@ -2,31 +2,64 @@ import { useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import axios from 'axios';
 
-// Firebase Imports for Auth Token Verification
+// Firebase Imports
 import { auth } from '../firebase'; 
 import { onAuthStateChanged } from 'firebase/auth';
 
+// Leaflet Map Imports
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default Leaflet marker icons in React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Map එක අලුත් Location එකට ගෙනියන්න (Fly to) හදපු Component එක
+function MapUpdater({ center }) {
+    const map = useMap();
+    useEffect(() => {
+        map.flyTo(center, 15); // Zoom level 15
+    }, [center, map]);
+    return null;
+}
+
 export default function Dashboard() {
-    // State to hold the vehicle data from API
     const [demoVehicle, setDemoVehicle] = useState(null);
     const [loading, setLoading] = useState(true);
+    
+    // Default Map Center (මුලින් කොළඹ පෙන්වයි, ඊටපස්සේ ඇත්ත location එකට මාරු වෙයි)
+    const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]);
 
-    // Fetch vehicle data with Firebase Token when the component loads
     useEffect(() => {
+        // 1. Browser එකෙන් User ගේ ඇත්තම Live Location එක ගන්නවා
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setMapCenter([position.coords.latitude, position.coords.longitude]);
+                },
+                (error) => {
+                    console.error("Location ගන්න බැරි වුණා:", error);
+                }
+            );
+        }
+
+        // 2. Firebase Token එක අරගෙන Backend එකෙන් Data ගන්නවා
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 try {
-                    // Get Firebase ID token to pass through middleware
                     const token = await user.getIdToken();
 
-                    // Calling your Laravel API endpoint with Authorization Header
                     const response = await axios.get('/api/vehicles', {
                         headers: {
                             Authorization: `Bearer ${token}`
                         }
                     });
                     
-                    // Assuming the API returns an array, we take the first vehicle as the Demo
                     if (response.data && response.data.length > 0) {
                         setDemoVehicle(response.data[0]);
                     }
@@ -36,7 +69,6 @@ export default function Dashboard() {
                     setLoading(false);
                 }
             } else {
-                // If not logged in, redirect to login page
                 window.location.href = '/login';
             }
         });
@@ -53,7 +85,7 @@ export default function Dashboard() {
         <div className="min-h-screen bg-gray-100 flex overflow-hidden">
             <Head title="Dashboard - Shalotrack" />
 
-            {/* Left Sidebar Navigation (Web Layout) */}
+            {/* Left Sidebar Navigation */}
             <div className="w-64 bg-[#003366] text-white shadow-xl flex flex-col z-20">
                 <div className="p-6 text-center border-b border-[#002244]">
                     <h1 className="text-2xl font-bold text-[#FF8C00]">Shalotrack</h1>
@@ -79,27 +111,35 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Main Content Area - Full Map Background */}
-            <div className="flex-1 relative">
+            {/* Main Content Area - Real Leaflet Map Background */}
+            <div className="flex-1 relative z-0">
                 
-                {/* Background Map Placeholder (Using OpenStreetMap iframe for immediate testing) */}
-                <div className="absolute inset-0 z-0 bg-blue-50">
-                    <iframe 
-                        width="100%" 
-                        height="100%" 
-                        frameBorder="0" 
-                        scrolling="no" 
-                        marginHeight="0" 
-                        marginWidth="0" 
-                        src="https://www.openstreetmap.org/export/embed.html?bbox=79.80%2C6.80%2C80.00%2C7.00&layer=mapnik" 
-                        className="opacity-90"
-                    ></iframe>
+                {/* Real Interactive Map */}
+                <div className="absolute inset-0 z-0">
+                    <MapContainer 
+                        center={mapCenter} 
+                        zoom={13} 
+                        style={{ height: '100vh', width: '100%' }} 
+                        zoomControl={false}
+                    >
+                        <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        {/* Map එකේ Location අප්ඩේට් කරන්න ඕන component එක */}
+                        <MapUpdater center={mapCenter} />
+                        
+                        <Marker position={mapCenter}>
+                            <Popup>
+                                ඔයා ඉන්නේ මෙතන!
+                            </Popup>
+                        </Marker>
+                    </MapContainer>
                 </div>
 
-                {/* Floating Interactive Panel (Replicating the Mobile Bottom Sheet) */}
-                <div className="absolute top-6 left-6 w-96 bg-white rounded-3xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Floating Interactive Panel */}
+                <div className="absolute top-6 left-6 w-96 bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh] border border-gray-100">
                     
-                    {/* Demo Vehicle Section (API Driven) */}
                     <div className="p-6 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-bold text-[#003366]">Demo Vehicle</h2>
@@ -118,11 +158,10 @@ export default function Dashboard() {
                             </div>
                         ) : demoVehicle ? (
                             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                {/* Replace these keys with your actual API response keys */}
                                 <p className="font-semibold text-gray-800 text-lg">{demoVehicle.vehicle_name || demoVehicle.VehicleId || 'Toyota Prius (Demo)'}</p>
                                 <p className="text-sm text-gray-500 mt-1">Number Plate: {demoVehicle.number_plate || demoVehicle.NumberPlate || 'WP CAA-1234'}</p>
                                 <div className="mt-3 inline-block px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">
-                                    Status: {demoVehicle.status || 'Active / Moving'}
+                                    Status: Active / Moving
                                 </div>
                             </div>
                         ) : (
