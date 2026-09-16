@@ -3,7 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import axios from 'axios';
 
 // Firebase imports (Make sure this path matches your firebase config file)
-import { auth } from '../../firebase'; 
+import { auth } from '../firebase'; 
 import { onAuthStateChanged } from 'firebase/auth';
 
 export default function Dashboard() {
