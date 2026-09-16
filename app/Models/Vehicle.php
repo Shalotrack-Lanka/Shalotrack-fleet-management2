@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Vehicle extends Model
 {
+    
+    protected $table = 'Vehicles'; 
+
     protected $fillable = ['plate_number', 'make', 'model', 'status'];
 
     public function locations()
