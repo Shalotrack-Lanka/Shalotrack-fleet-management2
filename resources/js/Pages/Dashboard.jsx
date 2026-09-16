@@ -7,7 +7,7 @@ import { auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // Leaflet Map Imports
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -19,20 +19,45 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+// Map එක අලුත් Location එකට ගෙනියන්න (Fly to) හදපු Component එක
+function MapUpdater({ center }) {
+    const map = useMap();
+    useEffect(() => {
+        map.flyTo(center, 15); // Zoom level 15
+    }, [center, map]);
+    return null;
+}
+
 export default function Dashboard() {
     const [demoVehicle, setDemoVehicle] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    // Default Map Center (Colombo, Sri Lanka)
-    const mapCenter = [6.9271, 79.8612];
+    
+    // Default Map Center (මුලින් කොළඹ පෙන්වයි, ඊටපස්සේ ඇත්ත location එකට මාරු වෙයි)
+    const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]);
 
     useEffect(() => {
+        // 1. Browser එකෙන් User ගේ ඇත්තම Live Location එක ගන්නවා
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setMapCenter([position.coords.latitude, position.coords.longitude]);
+                },
+                (error) => {
+                    console.error("Location ගන්න බැරි වුණා:", error);
+                }
+            );
+        }
+
+        // 2. Firebase Token එක අරගෙන Backend එකෙන් Data ගන්නවා
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 try {
                     const token = await user.getIdToken();
+
                     const response = await axios.get('/api/vehicles', {
-                        headers: { Authorization: `Bearer ${token}` }
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
                     });
                     
                     if (response.data && response.data.length > 0) {
@@ -101,9 +126,12 @@ export default function Dashboard() {
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
+                        {/* Map එකේ Location අප්ඩේට් කරන්න ඕන component එක */}
+                        <MapUpdater center={mapCenter} />
+                        
                         <Marker position={mapCenter}>
                             <Popup>
-                                Demo Vehicle Location
+                                ඔයා ඉන්නේ මෙතන!
                             </Popup>
                         </Marker>
                     </MapContainer>
@@ -146,8 +174,9 @@ export default function Dashboard() {
                     {/* Action Items List */}
                     <div className="p-4 overflow-y-auto">
                         <ul className="space-y-1">
+                            {/* Add a Person */}
                             <li>
-                                <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-2xl transition-colors group">
+                                <button className="w-full flex items-center p-3 hover:bg-gray-50 rounded-2xl transition-colors group">
                                     <div className="h-12 w-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                     </div>
@@ -155,8 +184,10 @@ export default function Dashboard() {
                                     <svg className="ml-auto w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                                 </button>
                             </li>
+
+                            {/* Add a Vehicle */}
                             <li>
-                                <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-2xl transition-colors group">
+                                <button className="w-full flex items-center p-3 hover:bg-gray-50 rounded-2xl transition-colors group">
                                     <div className="h-12 w-12 bg-[#003366] rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                                     </div>
@@ -164,7 +195,39 @@ export default function Dashboard() {
                                     <svg className="ml-auto w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                                 </button>
                             </li>
-                            {/* අනිත් Buttons ටික එහෙම්මම තියෙනවා */}
+
+                            {/* Add a Pet */}
+                            <li>
+                                <button className="w-full flex items-center p-3 hover:bg-gray-50 rounded-2xl transition-colors group">
+                                    <div className="h-12 w-12 bg-[#FF8C00] rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                    </div>
+                                    <span className="ml-4 font-medium text-gray-700 text-lg">Add a Pet</span>
+                                    <svg className="ml-auto w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </li>
+
+                            {/* Add a TAG */}
+                            <li>
+                                <button className="w-full flex items-center p-3 hover:bg-gray-50 rounded-2xl transition-colors group">
+                                    <div className="h-12 w-12 bg-purple-500 rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                                    </div>
+                                    <span className="ml-4 font-medium text-gray-700 text-lg">Add a TAG</span>
+                                    <svg className="ml-auto w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </li>
+
+                            {/* Add a Place */}
+                            <li>
+                                <button className="w-full flex items-center p-3 hover:bg-gray-50 rounded-2xl transition-colors group">
+                                    <div className="h-12 w-12 bg-teal-500 rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    </div>
+                                    <span className="ml-4 font-medium text-gray-700 text-lg">Add a place</span>
+                                    <svg className="ml-auto w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>
