@@ -7,12 +7,11 @@ use Illuminate\Http\Request;
 
 class VehicleController extends Controller
 {
-    // Get all vehicles along with their latest location and associated device
+    
     public function index()
     {
-        $vehicles = Vehicle::with(['device', 'locations' => function($query) {
-            $query->latest('recorded_at')->take(1); // Get the latest location for each vehicle
-        }])->get();
+        
+        $vehicles = Vehicle::get(); 
 
         return response()->json([
             'success' => true,
@@ -25,7 +24,8 @@ class VehicleController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'plate_number' => 'required|string|unique:vehicles',
+            
+            'plate_number' => 'required|string|unique:Vehicles',
             'make' => 'required|string',
             'model' => 'required|string',
         ]);
@@ -39,12 +39,11 @@ class VehicleController extends Controller
         ], 201);
     }
 
-    // Get a specific vehicle along with their latest location and associated device
+    // Get a specific vehicle
     public function show($id)
     {
-        $vehicle = Vehicle::with(['device', 'locations' => function($query) {
-            $query->latest('recorded_at')->take(1);
-        }])->findOrFail($id);
+        
+        $vehicle = Vehicle::findOrFail($id);
 
         return response()->json([
             'success' => true,
