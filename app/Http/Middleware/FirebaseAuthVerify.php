@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Kreait\Laravel\Firebase\Facades\Firebase;
 use Symfony\Component\HttpFoundation\Response;
 
 class FirebaseAuthVerify
@@ -22,8 +21,8 @@ class FirebaseAuthVerify
         }
 
         try {
-            // Verify the token using Firebase
-            $auth = Firebase::auth();
+            
+            $auth = app('firebase.auth');
             $verifiedIdToken = $auth->verifyIdToken($token);
             
             // Get the UID and phone number from the verified token
@@ -39,7 +38,8 @@ class FirebaseAuthVerify
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false, 
-                'message' => 'Unauthorized - Invalid Token'
+                
+                'message' => 'Unauthorized - Invalid Token: ' . $e->getMessage()
             ], 401);
         }
 
