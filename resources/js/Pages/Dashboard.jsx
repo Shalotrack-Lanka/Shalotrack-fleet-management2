@@ -19,12 +19,22 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Component to instantly set the map view to the newly updated coordinates without delay
+// Create a custom Car Icon for live tracking
+const carIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3204/3204061.png', // Top-down car image
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20]
+});
+
+// Component to handle map centering (Follows the car smoothly)
 function MapUpdater({ center }) {
     const map = useMap();
     useEffect(() => {
-        // Changed from flyTo to setView for instant loading without animation delays
-        map.setView(center, 15, { animate: false }); 
+        if (center) {
+            // Smooth transition when tracking the car
+            map.flyTo(center, 16, { animate: true, duration: 1.5 }); 
+        }
     }, [center, map]);
     return null;
 }
@@ -35,8 +45,11 @@ export default function Dashboard() {
     // State to manage the loading skeleton animation
     const [loading, setLoading] = useState(true);
     
-    // Default Map Center (Initializes to Colombo, Sri Lanka, then updates to actual user location)
-    const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]);
+    // Default User Location (Initializes to Colombo, then updates to actual user location)
+    const [userLocation, setUserLocation] = useState([6.9271, 79.8612]);
+    
+    // Live Location of the Car from the API
+    const [carLocation, setCarLocation] = useState(null);
 
     // States for handling the "Add Vehicle" Modal and form submissions
     const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false);
@@ -59,6 +72,14 @@ export default function Dashboard() {
                 // Find the specific demo vehicle, fallback to the first vehicle if not found
                 const demo = vehiclesList.find(v => v.IsDemoVehicle === true) || vehiclesList[0];
                 setDemoVehicle(demo);
+
+                // Look for coordinates in the response (Handles both capitalized and simple letters)
+                const lat = demo.Latitude || demo.latitude;
+                const lng = demo.Longitude || demo.longitude;
+
+                if (lat && lng) {
+                    setCarLocation([parseFloat(lat), parseFloat(lng)]);
+                }
             }
         } catch (error) {
             console.error("Error fetching vehicles:", error);
@@ -69,26 +90,39 @@ export default function Dashboard() {
         // 1. Fetch the user's actual live location via browser Geolocation API
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                (position) => setMapCenter([position.coords.latitude, position.coords.longitude]),
+                (position) => setUserLocation([position.coords.latitude, position.coords.longitude]),
                 (error) => console.error("Location Error:", error)
             );
         }
+
+        let intervalId; // To store the polling interval
 
         // 2. Listen for Firebase Auth state changes to secure API requests
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // Retrieve ID token and pass it to the fetch function
                 const token = await user.getIdToken();
+                
+                // Initial Fetch
                 await fetchVehicles(token);
                 setLoading(false);
+
+                // 3. LIVE TRACKING POLLING: Fetch new data every 5 seconds
+                intervalId = setInterval(() => {
+                    fetchVehicles(token);
+                }, 5000);
+
             } else {
                 // Redirect to login if unauthenticated
                 window.location.href = '/login';
             }
         });
 
-        // Cleanup listener on unmount
-        return () => unsubscribe();
+        // Cleanup listener and interval on component unmount
+        return () => {
+            unsubscribe();
+            if (intervalId) clearInterval(intervalId);
+        };
     }, []);
 
     // Logout handler
@@ -135,7 +169,7 @@ export default function Dashboard() {
             <div className="w-64 bg-[#003366] text-white shadow-xl flex flex-col z-20">
                 <div className="p-6 text-center border-b border-[#002244]">
                     <h1 className="text-2xl font-bold text-[#FF8C00]">Shalotrack</h1>
-                    <p className="text-xs text-gray-300 mt-1">Fleet Management</p>
+                    <p className="text-xs text-gray-300 mt-1">Live Tracking Active</p>
                 </div>
                 
                 <nav className="flex-1 px-4 py-6 space-y-2">
@@ -152,17 +186,32 @@ export default function Dashboard() {
             {/* Main Content Area */}
             <div className="flex-1 relative z-0">
                 
-                {/* Background Leaflet Map (Now using fast Google Maps Tiles) */}
+                {/* Background Leaflet Map (Using fast Google Maps Tiles) */}
                 <div className="absolute inset-0 z-0">
-                    <MapContainer center={mapCenter} zoom={13} style={{ height: '100vh', width: '100%' }} zoomControl={false}>
+                    <MapContainer center={carLocation || userLocation} zoom={15} style={{ height: '100vh', width: '100%' }} zoomControl={false}>
                         <TileLayer 
                             attribution='&copy; Google Maps' 
                             url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" 
                         />
-                        <MapUpdater center={mapCenter} />
-                        <Marker position={mapCenter}>
+                        
+                        {/* Smoothly follows the car if carLocation exists, otherwise centers on user */}
+                        <MapUpdater center={carLocation || userLocation} />
+                        
+                        {/* User's Current Location (Default Blue Pin) */}
+                        <Marker position={userLocation}>
                             <Popup>You are here!</Popup>
                         </Marker>
+
+                        {/* Live Tracking Car Marker (Custom Car Icon) */}
+                        {carLocation && (
+                            <Marker position={carLocation} icon={carIcon}>
+                                <Popup>
+                                    <b>{demoVehicle?.Make} {demoVehicle?.Model}</b><br/>
+                                    Plate: {demoVehicle?.VehicleNumber}<br/>
+                                    <i>Live Tracking...</i>
+                                </Popup>
+                            </Marker>
+                        )}
                     </MapContainer>
                 </div>
 
@@ -172,10 +221,11 @@ export default function Dashboard() {
                     {/* Demo Vehicle Status Card */}
                     <div className="p-6 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-bold text-[#003366]">Demo Vehicle</h2>
+                            <h2 className="text-lg font-bold text-[#003366]">Live Tracking</h2>
+                            {/* Blinking Red Dot for Live Status */}
                             <span className="flex h-3 w-3 relative">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                             </span>
                         </div>
                         
@@ -195,8 +245,8 @@ export default function Dashboard() {
                                 <p className="text-sm text-gray-500 mt-1">
                                     Number Plate: {demoVehicle.VehicleNumber || demoVehicle.plate_number || 'N/A'}
                                 </p>
-                                <div className={`mt-3 inline-block px-3 py-1 text-xs font-bold rounded-full border ${demoVehicle.IsActive !== false ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    Status: {demoVehicle.IsActive !== false ? 'Active / Moving' : 'Inactive'}
+                                <div className={`mt-3 inline-block px-3 py-1 text-xs font-bold rounded-full border ${carLocation ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                                    Status: {carLocation ? '🟢 Moving (Live)' : '⏳ Waiting for GPS...'}
                                 </div>
                             </div>
                         ) : (
