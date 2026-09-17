@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Location extends Model
 {
-    
-    protected $table = 'Locations';
+  
+    protected $table = 'CurrentLocations';
 
     protected $fillable = ['vehicle_id', 'latitude', 'longitude', 'speed', 'ignition_on', 'heading', 'recorded_at'];
 
