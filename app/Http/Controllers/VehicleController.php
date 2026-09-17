@@ -3,15 +3,30 @@
 namespace App\Http\Controllers;
 
 use App\Models\Vehicle;
+use App\Models\Location; 
 use Illuminate\Http\Request;
 
 class VehicleController extends Controller
 {
-    
     public function index()
     {
-        
+        // 1. Get all vehicles from the Vehicles table
         $vehicles = Vehicle::get(); 
+
+        // 2. Get the latest location for each vehicle from the Locations table
+        $vehicles->each(function($vehicle) {
+            // Get the latest (recorded_at) location record for the vehicle
+            $latestLocation = Location::where('vehicle_id', $vehicle->VehicleId)
+                                ->orderBy('recorded_at', 'desc')
+                                ->first();
+
+            if ($latestLocation) {
+                // Get the latest location details and add them to the vehicle object
+                $vehicle->Latitude = $latestLocation->latitude;
+                $vehicle->Longitude = $latestLocation->longitude;
+                $vehicle->Speed = $latestLocation->speed;
+            }
+        });
 
         return response()->json([
             'success' => true,
@@ -24,7 +39,6 @@ class VehicleController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            
             'plate_number' => 'required|string|unique:Vehicles',
             'make' => 'required|string',
             'model' => 'required|string',
@@ -42,8 +56,18 @@ class VehicleController extends Controller
     // Get a specific vehicle
     public function show($id)
     {
-        
         $vehicle = Vehicle::findOrFail($id);
+
+        // Get the latest location for the vehicle
+        $latestLocation = Location::where('vehicle_id', $vehicle->VehicleId)
+                            ->orderBy('recorded_at', 'desc')
+                            ->first();
+
+        if ($latestLocation) {
+            $vehicle->Latitude = $latestLocation->latitude;
+            $vehicle->Longitude = $latestLocation->longitude;
+            $vehicle->Speed = $latestLocation->speed;
+        }
 
         return response()->json([
             'success' => true,
