@@ -13,18 +13,16 @@ class VehicleController extends Controller
         // 1. Get all vehicles from the Vehicles table
         $vehicles = Vehicle::get(); 
 
-        // 2. Get the latest location for each vehicle from the Locations table
+        // 2. Get the latest location using 'LastUpdate'
         $vehicles->each(function($vehicle) {
-            // Get the latest (recorded_at) location record for the vehicle
-            $latestLocation = Location::where('vehicle_id', $vehicle->VehicleId)
-                                ->orderBy('recorded_at', 'desc')
+            $latestLocation = Location::where('VehicleId', $vehicle->VehicleId)
+                                ->orderBy('LastUpdate', 'desc')
                                 ->first();
 
             if ($latestLocation) {
-                // Get the latest location details and add them to the vehicle object
-                $vehicle->Latitude = $latestLocation->latitude;
-                $vehicle->Longitude = $latestLocation->longitude;
-                $vehicle->Speed = $latestLocation->speed;
+                $vehicle->Latitude = $latestLocation->Latitude ?? $latestLocation->latitude;
+                $vehicle->Longitude = $latestLocation->Longitude ?? $latestLocation->longitude;
+                $vehicle->Speed = $latestLocation->Speed ?? $latestLocation->speed ?? 0;
             }
         });
 
@@ -58,15 +56,14 @@ class VehicleController extends Controller
     {
         $vehicle = Vehicle::findOrFail($id);
 
-        // Get the latest location for the vehicle
-        $latestLocation = Location::where('vehicle_id', $vehicle->VehicleId)
-                            ->orderBy('recorded_at', 'desc')
+        $latestLocation = Location::where('VehicleId', $vehicle->VehicleId)
+                            ->orderBy('LastUpdate', 'desc')
                             ->first();
 
         if ($latestLocation) {
-            $vehicle->Latitude = $latestLocation->latitude;
-            $vehicle->Longitude = $latestLocation->longitude;
-            $vehicle->Speed = $latestLocation->speed;
+            $vehicle->Latitude = $latestLocation->Latitude ?? $latestLocation->latitude;
+            $vehicle->Longitude = $latestLocation->Longitude ?? $latestLocation->longitude;
+            $vehicle->Speed = $latestLocation->Speed ?? $latestLocation->speed ?? 0;
         }
 
         return response()->json([
