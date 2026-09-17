@@ -13,16 +13,13 @@ class VehicleController extends Controller
         // 1. Get all vehicles from the Vehicles table
         $vehicles = Vehicle::get(); 
 
-        // 2. Get the latest location for each vehicle from the Locations table
+        // 2. Get the latest location using 'LastUpdate'
         $vehicles->each(function($vehicle) {
-            
-            // IMPORTANT: Changed 'vehicle_id' to 'VehicleId' and 'recorded_at' to 'UpdatedAt' to match Supabase
             $latestLocation = Location::where('VehicleId', $vehicle->VehicleId)
-                                ->orderBy('UpdatedAt', 'desc')
+                                ->orderBy('LastUpdate', 'desc')
                                 ->first();
 
             if ($latestLocation) {
-                // Get the latest location details and add them to the vehicle object (Handling Capitalized columns)
                 $vehicle->Latitude = $latestLocation->Latitude ?? $latestLocation->latitude;
                 $vehicle->Longitude = $latestLocation->Longitude ?? $latestLocation->longitude;
                 $vehicle->Speed = $latestLocation->Speed ?? $latestLocation->speed ?? 0;
@@ -59,9 +56,8 @@ class VehicleController extends Controller
     {
         $vehicle = Vehicle::findOrFail($id);
 
-        // Get the latest location for the vehicle
         $latestLocation = Location::where('VehicleId', $vehicle->VehicleId)
-                            ->orderBy('UpdatedAt', 'desc')
+                            ->orderBy('LastUpdate', 'desc')
                             ->first();
 
         if ($latestLocation) {
